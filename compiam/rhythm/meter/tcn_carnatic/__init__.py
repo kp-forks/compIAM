@@ -12,23 +12,35 @@ from compiam.rhythm.meter.tcn_carnatic.pre import PreProcessor
 from compiam.rhythm.meter.tcn_carnatic.post import beat_tracker, joint_tracker, sequential_tracker
 from compiam.utils.download import download_remote_model
 from compiam.utils import get_logger, WORKDIR
+from compiam.io import write_csv
 
 logger = get_logger(__name__)
 
-class TCNTracker:
+class TCNTracker(object):
+    """TCN beat tracker tuned to Carnatic Music."""
     def __init__(self, post_processor="joint", model_version=42, model_path=None, download_link=None, download_checksum=None, gpu=-1):
+        """TCN beat tracker init method.
+
+        :param post_processor: Post-processing method to use. Choose from 'joint', or 'sequential'.
+        :param model_version: Version of the pre-trained model to use. Choose from 42, 52, or 62.
+        :param model_path: path to file to the model weights.
+        :param download_link: link to the remote pre-trained model.
+        :param download_checksum: checksum of the model file.
+        """
         ### IMPORTING OPTIONAL DEPENDENCIES
         try:
             global torch
             import torch
+            global madmom
+            import madmom
 
             global MultiTracker
             from compiam.rhythm.meter.tcn_carnatic.model import MultiTracker
 
         except:
             raise ImportError(
-                "In order to use this tool you need to have torch installed. "
-                "Install compIAM with torch support: pip install 'compiam[torch]'"
+                "In order to use this tool you need to have torch and madmom installed. "
+                "Install compIAM with torch and madmom support: pip install 'compiam[torch,madmom]'"
             )
         ###
         if post_processor not in ["beat", "joint", "sequential"]:
@@ -55,48 +67,13 @@ class TCNTracker:
         self.post_processor = joint_tracker if post_processor == "joint" else \
                               sequential_tracker
 
-    @torch.no_grad()
-    def predict(self, audio_path: str) -> Dict:
-
-        if self.trained is False:
-            raise ModelNotTrainedError(
-                """Model is not trained. Please load model before running inference!
-                You can load the pre-trained instance with the load_model wrapper."""
-            )
-
-        features = self.preprocess_audio(audio_path)
-        x = torch.from_numpy(features).to(self.device)
-        output = self.model(x)
-        beats_act = output["beats"].squeeze().detach().cpu().numpy()
-        downbeats_act = output["downbeats"].squeeze().detach().cpu().numpy()
-
-        if self.post_processor == beat_tracker:
-            beats, beat_positions = self.post_processor(beats_act)
-        else:
-            pred = self.post_processor(beats_act, downbeats_act)
-        return pred
-
-    def preprocess_audio(self, audio_path: str) -> np.ndarray:
-        audio, sr = madmom.io.audio.load_audio_file(audio_path)
-
-        if audio.shape[0] == 2:
-            audio = audio.mean(axis=0)
-
-        s = madmom.audio.Signal(audio, sr, num_channels=1)
-        x = self.pre_processor(s)
-
-        pad_start = np.repeat(x[:1], self.pad_frames, axis=0)
-        pad_stop = np.repeat(x[-1:], self.pad_frames, axis=0)
-        x_padded = np.concatenate((pad_start, x, pad_stop))
-
-        x_final = np.expand_dims(np.expand_dims(x_padded, axis=0), axis=0)
-
-        return x_final
 
     def _build_model(self):
+        """Build the TCN model."""
         model = MultiTracker().to(self.device)
         model.eval()
         return model
+
 
     def load_model(self, model_path):
         """Load pre-trained model weights."""
@@ -107,6 +84,7 @@ class TCNTracker:
 
         self.model_path = model_path
         self.trained = True
+
 
     def download_model(self, model_path=None, force_overwrite=True):
         """Download pre-trained model."""
@@ -125,6 +103,76 @@ class TCNTracker:
             download_path,
             force_overwrite=force_overwrite,
         )
+
+
+    @torch.no_grad()
+    def predict(self, input_data: str) -> Dict:
+        """Run inference on input audio file.
+
+        :param input_data: path to audio file or numpy array like audio signal.
+
+        :returns: a 2-D list with beats and beat positions.
+        """
+
+        if self.trained is False:
+            raise ModelNotTrainedError(
+                """Model is not trained. Please load model before running inference!
+                You can load the pre-trained instance with the load_model wrapper."""
+            )
+
+        features = self.preprocess_audio(input_data)
+        x = torch.from_numpy(features).to(self.device)
+        output = self.model(x)
+        beats_act = output["beats"].squeeze().detach().cpu().numpy()
+        downbeats_act = output["downbeats"].squeeze().detach().cpu().numpy()
+
+        pred = self.post_processor(beats_act, downbeats_act)
+
+        return pred
+
+    def preprocess_audio(self, input_data: str, input_sr: int = 44100) -> np.ndarray:
+        """Preprocess input audio file to extract features for inference.
+        :param audio_path: Path to the input audio file.
+        :param input_sr: Sampling rate of the input audio file.
+
+        :returns: Preprocessed features as a numpy array.
+        """
+        if isinstance(input_data, str):
+            if not os.path.exists(input_data):
+                raise FileNotFoundError("Target audio not found.")
+            audio, sr = madmom.io.audio.load_audio_file(input_data)
+            if audio.shape[0] == 2:
+                audio = audio.mean(axis=0)
+            s = madmom.audio.Signal(audio, sr, num_channels=1)
+        elif isinstance(input_data, np.ndarray):
+            audio = input_data
+            if audio.shape[0] == 2:
+                audio = audio.mean(axis=0)
+            s = madmom.audio.Signal(audio, input_sr, num_channels=1)
+        else:
+            raise ValueError("Input must be path to audio signal or an audio array")
+
+        x = self.pre_processor(s)
+
+        pad_start = np.repeat(x[:1], self.pad_frames, axis=0)
+        pad_stop = np.repeat(x[-1:], self.pad_frames, axis=0)
+        x_padded = np.concatenate((pad_start, x, pad_stop))
+
+        x_final = np.expand_dims(np.expand_dims(x_padded, axis=0), axis=0)
+
+        return x_final
+
+    @staticmethod
+    def save_pitch(data, output_path):
+        """Calling the write_csv function in compiam.io to write the output beat track in a file
+
+        :param data: the data to write
+        :param output_path: the path where the data is going to be stored
+
+        :returns: None
+        """
+        return write_csv(data, output_path)
+
 
     def select_gpu(self, gpu="-1"):
         """Select the GPU to use for inference.

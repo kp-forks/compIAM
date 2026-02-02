@@ -38,10 +38,7 @@ def joint_tracker(beats_act, downbeats_act):
     combined_act = np.vstack((np.maximum(beats_act - downbeats_act, 0), downbeats_act)).T
     pred = downbeat_tracker(combined_act)
 
-    beats = pred[:, 0]
-    beat_positions = pred[:, 1]
-
-    return beats, beat_positions
+    return pred
 
 def sequential_tracker(beats_act, downbeats_act):
     beats_act = clip_probabilities(beats_act)
@@ -62,7 +59,4 @@ def sequential_tracker(beats_act, downbeats_act):
     except IndexError:
         pred = np.empty((0, 2))
 
-    beats = pred[:, 0]
-    beat_positions = pred[:, 1]
-
-    return beats, beat_positions
+    return pred

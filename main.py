@@ -199,14 +199,18 @@ def plot_spec(y, sr, gt_beats=None, gt_labels=None, pred_beats=None, pred_labels
 
     plt.show()
 
-audio_path = "../raksha_bettare.wav"
+audio_path = "../Devi Pavane.wav"
 
 print(compiam.list_models())
+from compiam.rhythm.meter.tcn_carnatic import TCNTracker
+tracker = TCNTracker(post_processor="sequential")
+tracker.trained = True
+pred = tracker.predict(audio_path)
 
-tracker = compiam.load_model('rhythm:tcn-carnatic')
-beats, beat_positions = tracker.predict(audio_path)
+beats = pred[:, 0]
 
-print(beats)
+print(pred)
+print(pred.shape)
 
 y, sr = librosa.load(audio_path)
 
