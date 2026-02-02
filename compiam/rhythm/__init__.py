@@ -13,7 +13,6 @@ TO_AVOID = [
 ### IMPORT HERE THE CONSIDERED TASKS
 from compiam.rhythm import meter
 from compiam.rhythm import transcription
-from compiam.rhythm import beat_tracking
 
 
 # Show user the available tasks
