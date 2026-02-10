@@ -75,7 +75,7 @@ essentia = [
     "essentia",
 ]
 madmom = [
-    "madmom",
+    "git+https://github.com/vivekvjyn/madmom.git",
 ]
 
 [project.urls]
