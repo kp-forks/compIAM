@@ -23,7 +23,7 @@ classifiers = [
 dependencies = [
     "attrs>=23.1.0",
     "matplotlib>=3.0.0",
-    "numpy>=1.20.3,<=1.26.4",
+    "numpy>=1.20.3,<=1.23.5",
     "joblib>=1.2.0",
     "pathlib~=1.0.1",
     "tqdm>=4.66.1",

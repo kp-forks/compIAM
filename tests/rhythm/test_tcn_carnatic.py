@@ -1,7 +1,7 @@
 import os
 import pytest
 import librosa
-
+import torch
 import numpy as np
 
 from compiam.data import TESTDIR
@@ -17,6 +17,8 @@ def test_predict_joint():
     tracker.trained = True
     with pytest.raises(FileNotFoundError):
         tracker.predict(os.path.join(TESTDIR, "resources", "rhythm", "hola.wav"))
+
+    print(tracker.predict(os.path.join(TESTDIR, "resources", "rhythm", "beat_test.wav")))
     beats = tracker.predict(
         os.path.join(TESTDIR, "resources", "rhythm", "beat_test.wav")
     )

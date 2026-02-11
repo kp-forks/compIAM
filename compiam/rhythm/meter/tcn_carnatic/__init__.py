@@ -1,15 +1,10 @@
 import os
 import sys
-import torch
 import numpy as np
-import madmom
 from typing import Dict
 from tqdm import tqdm
 from compiam.exceptions import ModelNotTrainedError
 
-from compiam.rhythm.meter.tcn_carnatic.model import MultiTracker
-from compiam.rhythm.meter.tcn_carnatic.pre import PreProcessor
-from compiam.rhythm.meter.tcn_carnatic.post import beat_tracker, joint_tracker, sequential_tracker
 from compiam.utils.download import download_remote_model
 from compiam.utils import get_logger, WORKDIR
 from compiam.io import write_csv
@@ -31,18 +26,26 @@ class TCNTracker(object):
         try:
             global torch
             import torch
+        except ImportError:
+            raise ImportError(
+                "Torch is required to use TCNTracker. "
+                "Install compIAM with torch support: pip install 'compiam[torch]'"
+            )
+
+        try:
             global madmom
             import madmom
-
-            global MultiTracker
-            from compiam.rhythm.meter.tcn_carnatic.model import MultiTracker
-
-        except:
+        except ImportError:
             raise ImportError(
-                "In order to use this tool you need to have torch and madmom installed. "
-                "Install compIAM with torch and madmom support: pip install 'compiam[torch,madmom]'"
+                "Madmom is required to use TCNTracker. "
+                "Install compIAM with madmom support: pip install 'compiam[madmom]'"
             )
-        ###
+###
+        global MultiTracker, PreProcessor, joint_tracker, sequential_tracker
+        from compiam.rhythm.meter.tcn_carnatic.model import MultiTracker
+        from compiam.rhythm.meter.tcn_carnatic.pre import PreProcessor
+        from compiam.rhythm.meter.tcn_carnatic.post import joint_tracker, sequential_tracker
+
         if post_processor not in ["beat", "joint", "sequential"]:
             raise ValueError(f"Invalid post_processor: {post_processor}. Choose from 'joint', or 'sequential'.")
         if model_version not in [42, 52, 62]:
@@ -104,8 +107,6 @@ class TCNTracker(object):
             force_overwrite=force_overwrite,
         )
 
-
-    @torch.no_grad()
     def predict(self, input_data: str) -> Dict:
         """Run inference on input audio file.
 
@@ -113,7 +114,6 @@ class TCNTracker(object):
 
         :returns: a 2-D list with beats and beat positions.
         """
-
         if self.trained is False:
             raise ModelNotTrainedError(
                 """Model is not trained. Please load model before running inference!
