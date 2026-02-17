@@ -7,7 +7,6 @@ import numpy as np
 from compiam.data import TESTDIR
 from compiam.exceptions import ModelNotTrainedError
 
-
 def test_predict_joint():
     from compiam.rhythm.meter.tcn_carnatic import TCNTracker
 
@@ -23,15 +22,15 @@ def test_predict_joint():
         os.path.join(TESTDIR, "resources", "rhythm", "beat_test.wav")
     )
 
-    print(beats.shape)
-
     audio_in, sr = librosa.load(
         os.path.join(TESTDIR, "resources", "rhythm", "beat_test.wav")
     )
-    beats_2 = tracker.predict(audio_in)
+    beats_2 = tracker.predict(audio_in, sr)
 
     assert isinstance(beats, np.ndarray)
     assert isinstance(beats_2, np.ndarray)
+    assert beats.shape[1] == 2
+    assert beats_2.shape[1] == 2
 
 def test_predict_sequential():
     from compiam.rhythm.meter.tcn_carnatic import TCNTracker
@@ -46,8 +45,6 @@ def test_predict_sequential():
         os.path.join(TESTDIR, "resources", "rhythm", "beat_test.wav")
     )
 
-    print(beats.shape)
-
     audio_in, sr = librosa.load(
         os.path.join(TESTDIR, "resources", "rhythm", "beat_test.wav")
     )
@@ -55,3 +52,18 @@ def test_predict_sequential():
 
     assert isinstance(beats, np.ndarray)
     assert isinstance(beats_2, np.ndarray)
+    assert beats.shape[1] == 2
+    assert beats_2.shape[1] == 2
+
+def test_48k():
+    from compiam.rhythm.meter.tcn_carnatic import TCNTracker
+
+    tracker = TCNTracker(post_processor="sequential")
+    tracker.trained = True
+    audio_in, sr = librosa.load(
+        os.path.join(TESTDIR, "resources", "rhythm", "48k.wav"), sr=48000
+    )
+    beats = tracker.predict(audio_in)
+
+    assert isinstance(beats, np.ndarray)
+    assert beats.shape[1] == 2

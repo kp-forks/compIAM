@@ -13,7 +13,13 @@ logger = get_logger(__name__)
 
 class TCNTracker(object):
     """TCN beat tracker tuned to Carnatic Music."""
-    def __init__(self, post_processor="joint", model_version=42, model_path=None, download_link=None, download_checksum=None, gpu=-1):
+    def __init__(self,
+        post_processor="joint",
+        model_version=42,
+        model_path=None,
+        download_link=None,
+        download_checksum=None,
+        gpu=-1):
         """TCN beat tracker init method.
 
         :param post_processor: Post-processing method to use. Choose from 'joint', or 'sequential'.
@@ -64,7 +70,6 @@ class TCNTracker(object):
         self.model = self._build_model()
         if self.model_path is not None:
             self.load_model(self.model_path)
-        self.pre_processor = PreProcessor(fps=100)
         self.pad_frames = 2
 
         self.post_processor = joint_tracker if post_processor == "joint" else \
@@ -107,7 +112,7 @@ class TCNTracker(object):
             force_overwrite=force_overwrite,
         )
 
-    def predict(self, input_data: str) -> Dict:
+    def predict(self, input_data: str, sr: int = 44100) -> Dict:
         """Run inference on input audio file.
 
         :param input_data: path to audio file or numpy array like audio signal.
@@ -120,7 +125,7 @@ class TCNTracker(object):
                 You can load the pre-trained instance with the load_model wrapper."""
             )
 
-        features = self.preprocess_audio(input_data)
+        features = self.preprocess_audio(input_data, sr)
         x = torch.from_numpy(features).to(self.device)
         output = self.model(x)
         beats_act = output["beats"].squeeze().detach().cpu().numpy()
@@ -130,7 +135,7 @@ class TCNTracker(object):
 
         return pred
 
-    def preprocess_audio(self, input_data: str, input_sr: int = 44100) -> np.ndarray:
+    def preprocess_audio(self, input_data: str, input_sr: int) -> np.ndarray:
         """Preprocess input audio file to extract features for inference.
         :param audio_path: Path to the input audio file.
         :param input_sr: Sampling rate of the input audio file.
@@ -143,16 +148,17 @@ class TCNTracker(object):
             audio, sr = madmom.io.audio.load_audio_file(input_data)
             if audio.shape[0] == 2:
                 audio = audio.mean(axis=0)
-            s = madmom.audio.Signal(audio, sr, num_channels=1)
+            signal = madmom.audio.Signal(audio, sr, num_channels=1)
         elif isinstance(input_data, np.ndarray):
             audio = input_data
             if audio.shape[0] == 2:
                 audio = audio.mean(axis=0)
-            s = madmom.audio.Signal(audio, input_sr, num_channels=1)
+            signal = madmom.audio.Signal(audio, input_sr, num_channels=1)
+            sr = input_sr
         else:
             raise ValueError("Input must be path to audio signal or an audio array")
 
-        x = self.pre_processor(s)
+        x = PreProcessor(sample_rate=sr)(signal)
 
         pad_start = np.repeat(x[:1], self.pad_frames, axis=0)
         pad_stop = np.repeat(x[-1:], self.pad_frames, axis=0)

@@ -4,14 +4,9 @@ from madmom.features.downbeats import DBNDownBeatTrackingProcessor, DBNBarTracki
 from scipy.ndimage import maximum_filter1d
 import numpy as np
 
-fps= 100  # frames per second for the DBN processors
-min_bpm= 55.0
-max_bpm= 230.0
-
-epsilon = 1e-5
-
 def clip_probabilities(probs):
     """Clip probabilities to avoid exact 0 and 1 values that cause DBN issues."""
+    epsilon = 1e-5
     probs = np.maximum(probs, 0)
     probs = np.minimum(probs, 1)
     return probs * (1 - epsilon) + epsilon / 2
@@ -19,7 +14,7 @@ def clip_probabilities(probs):
 def beat_tracker(beats_act):
     beats_act = clip_probabilities(beats_act)
     beat_dbn = DBNBeatTrackingProcessor(
-        min_bpm=min_bpm, max_bpm=max_bpm, fps=fps, transition_lambda=100, online=False)
+        min_bpm=55.0, max_bpm=230.0, fps=100, transition_lambda=100, online=False)
 
     if beats_act.size > 1:
         beats_pred = beat_dbn(beats_act)
@@ -33,7 +28,7 @@ def joint_tracker(beats_act, downbeats_act):
     downbeats_act = clip_probabilities(downbeats_act)
 
     downbeat_tracker = DBNDownBeatTrackingProcessor(
-                        beats_per_bar=[3, 5, 7, 8], min_bpm=min_bpm, max_bpm=max_bpm, fps=fps)
+                        beats_per_bar=[3, 5, 7, 8], min_bpm=55, max_bpm=230.0, fps=100)
 
     combined_act = np.vstack((np.maximum(beats_act - downbeats_act, 0), downbeats_act)).T
     pred = downbeat_tracker(combined_act)
@@ -41,6 +36,7 @@ def joint_tracker(beats_act, downbeats_act):
     return pred
 
 def sequential_tracker(beats_act, downbeats_act):
+    fps = 100
     beats_act = clip_probabilities(beats_act)
     downbeats_act = clip_probabilities(downbeats_act)
 
