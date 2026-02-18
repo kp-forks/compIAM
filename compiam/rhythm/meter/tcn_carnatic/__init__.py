@@ -112,13 +112,14 @@ class TCNTracker(object):
             force_overwrite=force_overwrite,
         )
 
-    def predict(self, input_data: str, sr: int = 44100, min_bpm=55, max_bpm=230) -> Dict:
+    def predict(self, input_data: str, sr: int = 44100, min_bpm=55, max_bpm=230, beats_per_bar=[3, 5, 7, 8]) -> Dict:
         """Run inference on input audio file.
 
         :param input_data: path to audio file or numpy array like audio signal.
         :param sr: sampling rate of the input audio signal (default: 44100).
         :param min_bpm: minimum BPM for beat tracking (default: 55).
         :param max_bpm: maximum BPM for beat tracking (default: 230).
+        :param beats_per_bar: list of possible beats per bar for downbeat tracking (default: [3, 5, 7, 8]).
 
         :returns: a 2-D list with beats and beat positions.
         """
@@ -134,7 +135,7 @@ class TCNTracker(object):
         beats_act = output["beats"].squeeze().detach().cpu().numpy()
         downbeats_act = output["downbeats"].squeeze().detach().cpu().numpy()
 
-        pred = self.post_processor(beats_act, downbeats_act, min_bpm=min_bpm, max_bpm=max_bpm)
+        pred = self.post_processor(beats_act, downbeats_act, min_bpm=min_bpm, max_bpm=max_bpm, beats_per_bar=beats_per_bar)
 
         return pred
 
