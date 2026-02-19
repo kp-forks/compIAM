@@ -24,4 +24,13 @@ Akshara Pulse Tracker
 ---------------------
 
 .. autoclass:: compiam.rhythm.meter.akshara_pulse_tracker.AksharaPulseTracker
-   :members:
+    :members:
+
+TCN Carnatic
+---------------------
+
+.. note::
+    REQUIRES: torch
+
+.. autoclass:: compiam.rhythm.meter.tcn_carnatic.TCNTracker
+    :members:
